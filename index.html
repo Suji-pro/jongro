@@ -1,0 +1,980 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>상권 개폐업 스코프</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+:root {
+  color-scheme: light;
+  --bg: #eef1f4;
+  --surface: #ffffff;
+  --surface-2: #f5f7f9;
+  --ink: #11161c;
+  --ink-2: #4d5966;
+  --ink-3: #7d8894;
+  --line: #dce2e8;
+  --line-strong: #c3ccd6;
+  --new: #2a78d6;
+  --new-soft: rgba(42, 120, 214, 0.14);
+  --shut: #e34948;
+  --shut-soft: rgba(227, 73, 72, 0.14);
+  --grid: rgba(17, 22, 28, 0.07);
+  --shadow: 0 1px 2px rgba(17, 22, 28, .06), 0 8px 24px -16px rgba(17, 22, 28, .28);
+  --focus: #2a78d6;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #0f1317;
+    --surface: #171c22;
+    --surface-2: #1d242b;
+    --ink: #edf1f5;
+    --ink-2: #a5b1bd;
+    --ink-3: #6b7885;
+    --line: #242c34;
+    --line-strong: #333e49;
+    --new: #3987e5;
+    --new-soft: rgba(57, 135, 229, 0.20);
+    --shut: #e66767;
+    --shut-soft: rgba(230, 103, 103, 0.20);
+    --grid: rgba(237, 241, 245, 0.08);
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.8);
+    --focus: #3987e5;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0f1317;
+  --surface: #171c22;
+  --surface-2: #1d242b;
+  --ink: #edf1f5;
+  --ink-2: #a5b1bd;
+  --ink-3: #6b7885;
+  --line: #242c34;
+  --line-strong: #333e49;
+  --new: #3987e5;
+  --new-soft: rgba(57, 135, 229, 0.20);
+  --shut: #e66767;
+  --shut-soft: rgba(230, 103, 103, 0.20);
+  --grid: rgba(237, 241, 245, 0.08);
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.8);
+  --focus: #3987e5;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "IBM Plex Sans KR", -apple-system, BlinkMacSystemFont, "Segoe UI",
+               "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 28px 22px 72px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ── 헤더 ─────────────────────────────────────────────── */
+.masthead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px 28px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--line-strong);
+}
+.masthead h1 {
+  margin: 0;
+  font-size: 27px;
+  font-weight: 700;
+  letter-spacing: -0.028em;
+  text-wrap: balance;
+}
+.masthead .sub {
+  margin: 4px 0 0;
+  color: var(--ink-2);
+  font-size: 13px;
+  font-weight: 400;
+}
+.scope {
+  display: flex;
+  gap: 22px;
+  flex-wrap: wrap;
+}
+.scope div { display: flex; flex-direction: column; gap: 1px; }
+.eyebrow {
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.scope b {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 13px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+/* ── 필터 ─────────────────────────────────────────────── */
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 14px 20px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  box-shadow: var(--shadow);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+.fgroup { display: flex; flex-direction: column; gap: 6px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  font: inherit;
+  font-size: 12.5px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  background: var(--surface-2);
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: background .12s, color .12s, border-color .12s;
+}
+.chip:hover { border-color: var(--ink-3); color: var(--ink); }
+.chip[aria-pressed="true"] {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--surface);
+  font-weight: 500;
+}
+.chip.kind-new[aria-pressed="true"] { background: var(--new); border-color: var(--new); color: #fff; }
+.chip.kind-shut[aria-pressed="true"] { background: var(--shut); border-color: var(--shut); color: #fff; }
+input[type="date"], input[type="search"] {
+  font: inherit;
+  font-size: 13px;
+  padding: 5px 9px;
+  border-radius: 5px;
+  border: 1px solid var(--line-strong);
+  background: var(--surface-2);
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+input[type="search"] { min-width: 190px; }
+.dates { display: flex; align-items: center; gap: 7px; color: var(--ink-3); }
+.linkbtn {
+  font: inherit;
+  font-size: 12.5px;
+  background: none;
+  border: none;
+  color: var(--new);
+  cursor: pointer;
+  padding: 5px 2px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* ── 스탯 타일 ────────────────────────────────────────── */
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+.tile {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 14px 16px 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  box-shadow: var(--shadow);
+  border-top: 2px solid var(--line-strong);
+}
+.tile.t-new { border-top-color: var(--new); }
+.tile.t-shut { border-top-color: var(--shut); }
+.tile .num {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 31px;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+}
+.tile .note { font-size: 12px; color: var(--ink-3); }
+
+/* ── 패널 ─────────────────────────────────────────────── */
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.phead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 13px 16px 11px;
+  border-bottom: 1px solid var(--line);
+}
+.phead h2 {
+  margin: 0;
+  font-size: 14.5px;
+  font-weight: 600;
+  letter-spacing: -0.012em;
+}
+.phead .hint { font-size: 12px; color: var(--ink-3); }
+.pbody { padding: 14px 16px 16px; }
+.grid-2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(390px, 1fr));
+  gap: 20px;
+}
+
+/* ── 범례 ─────────────────────────────────────────────── */
+.legend { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+.lg { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink-2); }
+.lg svg { display: block; overflow: visible; }
+.sw { width: 11px; height: 11px; border-radius: 2px; display: inline-block; flex: none; }
+.sw-new { background: var(--new); }
+.sw-shut { background: var(--shut); }
+
+/* ── 지도 ─────────────────────────────────────────────── */
+.mapwrap { position: relative; }
+#map {
+  width: 100%;
+  height: 520px;
+  border-radius: 3px;
+  border: 1px solid var(--line-strong);
+  background: var(--surface-2);
+}
+.leaflet-tooltip {
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+  box-shadow: 0 6px 22px -8px rgba(0,0,0,.45);
+  color: var(--ink);
+  padding: 8px 10px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  max-width: 260px;
+  white-space: normal;
+  opacity: 1;
+}
+.leaflet-tooltip-top:before { border-top-color: var(--line-strong); }
+.leaflet-tooltip .tname { font-weight: 600; display: block; }
+.leaflet-tooltip .tmeta { color: var(--ink-2); font-size: 12px; }
+.leaflet-tooltip .tkind {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10.5px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.leaflet-tooltip .tkind.k-new { color: var(--new); }
+.leaflet-tooltip .tkind.k-shut { color: var(--shut); }
+.leaflet-bar a {
+  background: var(--surface);
+  color: var(--ink-2);
+  border-bottom: 1px solid var(--line);
+}
+.leaflet-bar a:hover { background: var(--surface-2); color: var(--ink); }
+.leaflet-control-attribution {
+  background: rgba(255,255,255,.75);
+  color: #333;
+  font-size: 10.5px;
+}
+.tip {
+  position: absolute;
+  pointer-events: none;
+  z-index: 40;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+  padding: 8px 10px;
+  box-shadow: 0 6px 22px -8px rgba(0,0,0,.45);
+  font-size: 12.5px;
+  line-height: 1.5;
+  max-width: 300px;
+  opacity: 0;
+  transition: opacity .1s;
+}
+.tip.on { opacity: 1; }
+.tip .tname { font-weight: 600; display: block; }
+.tip .tmeta { color: var(--ink-2); font-size: 12px; }
+.tip .tkind {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10.5px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.tip .tkind.k-new { color: var(--new); }
+.tip .tkind.k-shut { color: var(--shut); }
+
+/* ── 표 ───────────────────────────────────────────────── */
+.tscroll { overflow-x: auto; max-height: 460px; overflow-y: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 12.8px; }
+thead th {
+  position: sticky;
+  top: 0;
+  background: var(--surface-2);
+  z-index: 2;
+  text-align: left;
+  font-weight: 600;
+  font-size: 11.5px;
+  letter-spacing: .02em;
+  color: var(--ink-2);
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line-strong);
+  white-space: nowrap;
+}
+tbody td {
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+tbody tr:hover td { background: var(--surface-2); }
+td.num, th.num {
+  text-align: right;
+  font-family: "IBM Plex Mono", monospace;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 1px 7px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+.badge.b-new { background: var(--new-soft); color: var(--new); }
+.badge.b-shut { background: var(--shut-soft); color: var(--shut); }
+.addr { color: var(--ink-2); font-size: 12px; }
+.empty { padding: 34px 16px; text-align: center; color: var(--ink-3); font-size: 13px; }
+
+/* 브랜드 순증감 다이버징 바 */
+.dbar { display: flex; align-items: center; height: 15px; width: 148px; }
+.dbar span { display: block; height: 9px; border-radius: 2px; }
+.dbar .left { margin-left: auto; background: var(--shut); }
+.dbar .mid { width: 1px; height: 15px; background: var(--line-strong); border-radius: 0; flex: none; }
+.dbar .right { margin-right: auto; background: var(--new); }
+
+footer {
+  color: var(--ink-3);
+  font-size: 12px;
+  line-height: 1.7;
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+}
+footer b { color: var(--ink-2); font-weight: 500; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+@media (max-width: 620px) {
+  .wrap { padding: 20px 14px 56px; }
+  .masthead h1 { font-size: 22px; }
+  .filters { position: static; }
+}
+</style><script>window.__NSRADAR__ = {"title":"상권 개폐업 스코프","subtitle":"LOCALDATA 인허가 데이터 기준 신규·폐점 추적","bbox":[126.9832306,37.5683242,126.9874281,37.5699737],"region":"서울특별시 종로구","range":["20250101","20260824"],"crs":"EPSG:5174","built":"2026-08-24 22:42","services":["일반음식점","제과점영업","휴게음식점"],"rows":[{"k":"new","s":"일반음식점","n":"상무초밥 종로점","b":"상무초밥","u":"일식","d":"20260716","a":"서울특별시 종로구 삼일대로 385-1, 동일빌딩 1층 (관철동)","x":126.987314,"y":37.5690837},{"k":"new","s":"일반음식점","n":"헤즈업 홀덤펍","b":"헤즈업 홀덤펍","u":"기타","d":"20260623","a":"서울특별시 종로구 종로10길 14, 4층 (관철동)","x":126.9843005,"y":37.5693953},{"k":"new","s":"일반음식점","n":"더 커튼룸(The Curtain Room)","b":"더 커튼룸","u":"경양식","d":"20260521","a":"서울특별시 종로구 청계천로 53, 4층 (관철동)","x":126.9836285,"y":37.5690282},{"k":"new","s":"일반음식점","n":"카페 윈체","b":"카페 윈체","u":"기타","d":"20260402","a":"서울특별시 종로구 삼일대로17길 8, 윈체빌딩 1층 (관철동)","x":126.9871723,"y":37.5692734},{"k":"new","s":"일반음식점","n":"파이널나인 서울종로점","b":"파이널나인","u":"기타","d":"20260123","a":"서울특별시 종로구 삼일대로17길 50, 지하1층 (관철동)","x":126.9847743,"y":37.5692787},{"k":"new","s":"일반음식점","n":"서울메이트 종로","b":"서울메이트 종로","u":"경양식","d":"20251204","a":"서울특별시 종로구 삼일대로19길 22, 3층 (관철동)","x":126.9863527,"y":37.5696629},{"k":"new","s":"일반음식점","n":"묵찌","b":"묵찌","u":"기타","d":"20251126","a":"서울특별시 종로구 삼일대로19길 21, 4층 (관철동)","x":126.9862668,"y":37.5694785},{"k":"new","s":"일반음식점","n":"더타코부스 서울 종각역점","b":"더타코부스 서울","u":"외국음식전문점(인도,태국등)","d":"20251120","a":"서울특별시 종로구 종로10길 21, 지상1층~지하1층 (관철동)","x":126.9845388,"y":37.5689975},{"k":"new","s":"일반음식점","n":"홍콩반점0410 종각역점","b":"홍콩반점0410","u":"중국식","d":"20251030","a":"서울특별시 종로구 종로10길 21, 2층 (관철동)","x":126.9845388,"y":37.5689975},{"k":"new","s":"일반음식점","n":"김삼보 보신각점","b":"김삼보","u":"한식","d":"20250911","a":"서울특별시 종로구 종로8길 13, 1~2층 (관철동)","x":126.9841014,"y":37.5694728},{"k":"new","s":"일반음식점","n":"북창동순두부 종로관철점","b":"북창동순두부","u":"한식","d":"20250814","a":"서울특별시 종로구 삼일대로 391, 3층 (관철동)","x":126.9873913,"y":37.5695116},{"k":"new","s":"일반음식점","n":"서현 양갈비 양꼬치","b":"서현 양갈비 양꼬치","u":"중국식","d":"20250804","a":"서울특별시 종로구 삼일대로17길 16, 시사빌딩 1층 (관철동)","x":126.9866618,"y":37.5692879},{"k":"new","s":"일반음식점","n":"또와요포차","b":"또와요포차","u":"한식","d":"20250729","a":"서울특별시 종로구 청계천로 63, 지하 1층 (관철동)","x":126.9845683,"y":37.5688779},{"k":"new","s":"일반음식점","n":"서울안심정육","b":"서울안심정육","u":"기타","d":"20250729","a":"서울특별시 종로구 청계천로 63, 2,3층 (관철동)","x":126.9845683,"y":37.5688779},{"k":"new","s":"일반음식점","n":"썬카페호프","b":"썬카페호프","u":"호프/통닭","d":"20250714","a":"서울특별시 종로구 삼일대로19길 6, 지하1층 (관철동)","x":126.98724,"y":37.5696634},{"k":"new","s":"일반음식점","n":"소울갈비 종각점","b":"소울갈비","u":"한식","d":"20250709","a":"서울특별시 종로구 청계천로 63, 1층 (관철동)","x":126.9845683,"y":37.5688779},{"k":"new","s":"일반음식점","n":"호앙비엣 관철동점","b":"호앙비엣","u":"기타","d":"20250512","a":"서울특별시 종로구 종로 82-1, 부봉빌딩 1층 (종로2가)","x":126.9866505,"y":37.5699488},{"k":"new","s":"일반음식점","n":"탕화쿵푸마라탕 종각점","b":"탕화쿵푸마라탕","u":"기타","d":"20250328","a":"서울특별시 종로구 종로 70-1, 2층 (종로2가)","x":126.9852964,"y":37.5699527},{"k":"new","s":"일반음식점","n":"종각역 미술관고기집 인사동점","b":"종각역 미술관고기집","u":"한식","d":"20250320","a":"서울특별시 종로구 우정국로2길 37, 청문학원 2층 (관철동)","x":126.9852139,"y":37.5696726},{"k":"new","s":"일반음식점","n":"공평동 꼼장어","b":"공평동 꼼장어","u":"기타","d":"20250227","a":"서울특별시 종로구 삼일대로17길 52, 삼보빌딩 2층 (관철동)","x":126.9845874,"y":37.5693072},{"k":"new","s":"일반음식점","n":"주식회사 파작 (PAZAC. Inc)","b":"파작","u":"경양식","d":"20250218","a":"서울특별시 종로구 청계천로 57, 1층 (관철동)","x":126.9840589,"y":37.5689512},{"k":"new","s":"제과점영업","n":"서울다이닝그룹","b":"서울다이닝그룹","u":"제과점영업","d":"20260106","a":"서울특별시 종로구 종로 86, 홍민빌딩 6층 (종로2가)","x":126.9870143,"y":37.5699473},{"k":"new","s":"휴게음식점","n":"레드포스PC아레나 종각점","b":"레드포스PC아레나","u":"기타 휴게음식점","d":"20260623","a":"서울특별시 종로구 종로 78, 미려빌딩 지하1층 (종로2가)","x":126.9860363,"y":37.5699506},{"k":"new","s":"휴게음식점","n":"베이커리 아궁","b":"베이커리 아궁","u":"기타 휴게음식점","d":"20251107","a":"서울특별시 종로구 우정국로 6, 교원종각빌딩 1층 (관철동)","x":126.9832408,"y":37.5693842},{"k":"new","s":"휴게음식점","n":"메가엠지씨커피 보신각점","b":"메가MGC커피","u":"커피숍","d":"20251010","a":"서울특별시 종로구 종로 62, 1,2층 (종로2가)","x":126.9842905,"y":37.5699345},{"k":"new","s":"휴게음식점","n":"(주)코리아세븐 New Wave 종각점","b":"코리아세븐 New Wave","u":"기타 휴게음식점","d":"20250703","a":"서울특별시 종로구 삼일대로 393, 규당빌딩 1층 (관철동)","x":126.9873913,"y":37.5696732},{"k":"new","s":"휴게음식점","n":"더리터 직영종로점","b":"더리터","u":"커피숍","d":"20250522","a":"서울특별시 종로구 삼일대로 391, 1층 (관철동)","x":126.9873913,"y":37.5695116},{"k":"new","s":"휴게음식점","n":"더홀릭보드게임카페종로점","b":"더홀릭보드게임카페종로점","u":"기타 휴게음식점","d":"20250430","a":"서울특별시 종로구 삼일대로19길 15, 관철동 삼진빌딩 지하 1층 (관철동)","x":126.9867193,"y":37.56945},{"k":"shut","s":"일반음식점","n":"별난 콩닭","b":"별난 콩닭","u":"기타","d":"20260708","a":"서울특별시 종로구 종로12길 10, 종로우리빌딩 지상1층 일부호 (관철동)","x":126.9856335,"y":37.5696719},{"k":"shut","s":"일반음식점","n":"에머이 종로본점","b":"에머이","u":"기타","d":"20260708","a":"서울특별시 종로구 종로12길 6-20, 지상1층 (관철동)","x":126.9846165,"y":37.5698416},{"k":"shut","s":"일반음식점","n":"(주)브로젝스","b":"브로젝스","u":"경양식","d":"20260611","a":"서울특별시 종로구 종로 78, 지하1층 2호 (종로2가)","x":126.9860363,"y":37.5699506},{"k":"shut","s":"일반음식점","n":"지금부터 우리는 모던바","b":"지금부터 우리는 모던바","u":"기타","d":"20260427","a":"서울특별시 종로구 우정국로2길 31, 3층 (관철동)","x":126.9848964,"y":37.5696751},{"k":"shut","s":"일반음식점","n":"두껍포차 본점","b":"두껍포차","u":"호프/통닭","d":"20260318","a":"서울특별시 종로구 우정국로2길 31 (관철동)","x":126.9847992,"y":37.569676},{"k":"shut","s":"일반음식점","n":"코다차야","b":"코다차야","u":"한식","d":"20251215","a":"서울특별시 종로구 종로 68, 지하1층 (종로2가)","x":126.9849333,"y":37.5699556},{"k":"shut","s":"일반음식점","n":"농축자돌판한우 종각직영점","b":"농축자돌판한우","u":"기타","d":"20251202","a":"서울특별시 종로구 종로12길 10, 종로우리빌딩 지상1층 (관철동)","x":126.9856335,"y":37.5696719},{"k":"shut","s":"일반음식점","n":"샷(SHOT)","b":"샷","u":"한식","d":"20251120","a":"서울특별시 종로구 종로10길 21, 지하1층 (관철동)","x":126.9845388,"y":37.5689975},{"k":"shut","s":"일반음식점","n":"수제왕돈까스","b":"수제왕돈까스","u":"경양식","d":"20251105","a":"서울특별시 종로구 삼일대로 393-1 (관철동,지상4,5층)","x":126.9874261,"y":37.5697732},{"k":"shut","s":"일반음식점","n":"왕십리황소곱창","b":"왕십리황소곱창","u":"한식","d":"20250902","a":"서울특별시 종로구 종로8길 13 (관철동,지상1층)","x":126.9841014,"y":37.5694728},{"k":"shut","s":"일반음식점","n":"30년 불멸의 닭발","b":"30년 불멸의 닭발","u":"한식","d":"20250818","a":"서울특별시 종로구 종로 62, 1층 (종로2가)","x":126.9842905,"y":37.5699345},{"k":"shut","s":"일반음식점","n":"명월김치찌개","b":"명월김치찌개","u":"한식","d":"20250818","a":"서울특별시 종로구 종로 62, 2층 (종로2가)","x":126.9842905,"y":37.5699345},{"k":"shut","s":"일반음식점","n":"원미각","b":"원미각","u":"한식","d":"20250804","a":"서울특별시 종로구 삼일대로17길 16 (관철동,1층)","x":126.9866618,"y":37.5692879},{"k":"shut","s":"일반음식점","n":"공평식당","b":"공평식당","u":"한식","d":"20250717","a":"서울특별시 종로구 청계천로 63 (관철동)","x":126.9845683,"y":37.5688779},{"k":"shut","s":"일반음식점","n":"공평동 꼼장어","b":"공평동 꼼장어","u":"한식","d":"20250704","a":"서울특별시 종로구 청계천로 63, 1층 (관철동)","x":126.9845683,"y":37.5688779},{"k":"shut","s":"일반음식점","n":"숏리스트","b":"숏리스트","u":"기타","d":"20250626","a":"서울특별시 종로구 삼일대로15길 1, 3층 (관철동)","x":126.9873795,"y":37.5687633},{"k":"shut","s":"일반음식점","n":"이가감자탕 30년 명가&보쌈","b":"이가감자탕 30년 명가&보쌈","u":"한식","d":"20250521","a":"서울특별시 종로구 우정국로2길 42, 2층 (관철동)","x":126.9853938,"y":37.5694493},{"k":"shut","s":"일반음식점","n":"식스클럽(Six Club)","b":"식스클럽","u":"기타","d":"20250331","a":"서울특별시 종로구 삼일대로19길 15, 관철동 삼진빌딩 지하1층 (관철동)","x":126.9867193,"y":37.56945},{"k":"shut","s":"일반음식점","n":"와인싸롱뱅뱅 종로관철점","b":"와인싸롱뱅뱅","u":"한식","d":"20250307","a":"서울특별시 종로구 우정국로2길 37, 2층 (관철동)","x":126.9852139,"y":37.5696726},{"k":"shut","s":"일반음식점","n":"3평양조","b":"3평양조","u":"기타","d":"20250217","a":"서울특별시 종로구 청계천로 57, 1층 (관철동)","x":126.9840589,"y":37.5689512},{"k":"shut","s":"일반음식점","n":"란카하우스(Ranka House)","b":"란카하우스","u":"경양식","d":"20250205","a":"서울특별시 종로구 삼일대로19길 16, 지상3층 (관철동)","x":126.9867589,"y":37.5696658},{"k":"shut","s":"제과점영업","n":"뚜레쥬르 종로점","b":"뚜레쥬르","u":"제과점영업","d":"20250113","a":"서울특별시 종로구 종로 62 (종로2가,지상1.2층)","x":126.9842905,"y":37.5699345},{"k":"shut","s":"휴게음식점","n":"아이센스리그PC종각점","b":"아이센스리그PC종각점","u":"기타 휴게음식점","d":"20260410","a":"서울특별시 종로구 삼일대로17길 19, 원산빌딩 2층 (관철동)","x":126.9862989,"y":37.5690899},{"k":"shut","s":"휴게음식점","n":"참토스트 종로점","b":"참토스트","u":"기타 휴게음식점","d":"20260309","a":"서울특별시 종로구 종로 80-2, 삼양빌딩 지상1층 좌측호 (종로2가)","x":126.9864263,"y":37.5699502},{"k":"shut","s":"휴게음식점","n":"(주) 커피빈코리아 종각역점","b":"커피빈","u":"커피숍","d":"20260115","a":"서울특별시 종로구 종로 70, 2층 (관철동)","x":126.9851705,"y":37.5698373},{"k":"shut","s":"휴게음식점","n":"노우즈","b":"노우즈","u":"기타 휴게음식점","d":"20251209","a":"서울특별시 종로구 종로8길 5, 1층 (관철동)","x":126.9840896,"y":37.5697672},{"k":"shut","s":"휴게음식점","n":"지혜의 공간","b":"지혜의 공간","u":"커피숍","d":"20251120","a":"서울특별시 종로구 종로10길 21, 4층 (관철동)","x":126.9845388,"y":37.5689975},{"k":"shut","s":"휴게음식점","n":"오셀롯PC 종로관철점","b":"오셀롯PC","u":"기타 휴게음식점","d":"20250814","a":"서울특별시 종로구 종로14길 19, 예지빌딩 4층 (관철동)","x":126.9870564,"y":37.569075},{"k":"shut","s":"휴게음식점","n":"달콤왕가탕후루 종로2가점","b":"달콤왕가탕후루","u":"기타 휴게음식점","d":"20250410","a":"서울특별시 종로구 종로 82-1, 부봉빌딩 1층 (종로2가)","x":126.9866505,"y":37.5699488}]};</script>
+</head><body>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <div>
+      <h1 id="title">상권 개폐업 스코프</h1>
+      <p class="sub" id="subtitle">LOCALDATA 인허가 데이터 기준 신규·폐점 추적</p>
+    </div>
+    <div class="scope">
+      <div id="m-region-wrap" hidden><span class="eyebrow">행정구역</span><b id="m-region">—</b></div>
+      <div><span class="eyebrow">지도 범위</span><b id="m-bbox">—</b></div>
+      <div><span class="eyebrow">적재 이력</span><b id="m-span">—</b></div>
+      <div><span class="eyebrow">좌표계</span><b id="m-crs">—</b></div>
+      <div><span class="eyebrow">생성</span><b id="m-built">—</b></div>
+    </div>
+  </header>
+
+  <div class="filters">
+    <div class="fgroup">
+      <span class="eyebrow">업종</span>
+      <div class="chips" id="f-svc"></div>
+    </div>
+    <div class="fgroup">
+      <span class="eyebrow">구분</span>
+      <div class="chips" id="f-kind">
+        <button class="chip kind-new" data-kind="new" aria-pressed="true" type="button">신규</button>
+        <button class="chip kind-shut" data-kind="shut" aria-pressed="true" type="button">폐점</button>
+      </div>
+    </div>
+    <div class="fgroup">
+      <span class="eyebrow">기간</span>
+      <div class="dates">
+        <input type="date" id="f-from" aria-label="시작일">
+        <span>–</span>
+        <input type="date" id="f-to" aria-label="종료일">
+      </div>
+    </div>
+    <div class="fgroup">
+      <span class="eyebrow">검색</span>
+      <input type="search" id="f-q" placeholder="상호·브랜드·주소" aria-label="상호, 브랜드, 주소 검색">
+    </div>
+    <button class="linkbtn" id="f-reset" type="button">필터 초기화</button>
+  </div>
+
+  <section class="tiles" id="tiles"></section>
+
+  <section class="panel">
+    <div class="phead">
+      <h2>지도 범위 내 분포</h2>
+      <div class="legend">
+        <span class="lg"><svg width="13" height="13" viewBox="0 0 13 13"><circle cx="6.5" cy="6.5" r="4.5" fill="var(--new)" stroke="var(--surface)" stroke-width="2"/></svg>신규 (원)</span>
+        <span class="lg"><svg width="13" height="13" viewBox="0 0 13 13"><path d="M6.5 1.4 11.6 6.5 6.5 11.6 1.4 6.5Z" fill="var(--shut)" stroke="var(--surface)" stroke-width="2"/></svg>폐점 (마름모)</span>
+        <span class="hint" id="map-note"></span>
+      </div>
+    </div>
+    <div class="pbody">
+      <div class="mapwrap">
+        <div id="map" role="img" aria-label="지도 범위 내 신규·폐점 점포 분포도"></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="grid-2">
+    <section class="panel">
+      <div class="phead">
+        <h2>업종별 신규·폐점</h2>
+        <div class="legend">
+          <span class="lg"><i class="sw sw-new"></i>신규</span>
+          <span class="lg"><i class="sw sw-shut"></i>폐점</span>
+          <span class="hint">막대 끝 숫자 = 건수</span>
+        </div>
+      </div>
+      <div class="pbody"><svg id="bysvc" role="img" aria-label="업종별 신규 및 폐점 건수 막대그래프"></svg></div>
+    </section>
+    <section class="panel">
+      <div class="phead">
+        <h2>월별 추이</h2>
+        <div class="legend">
+          <span class="lg"><i class="sw sw-new"></i>신규</span>
+          <span class="lg"><i class="sw sw-shut"></i>폐점</span>
+          <span class="hint">차트 위에서 마우스를 움직이세요</span>
+        </div>
+      </div>
+      <div class="pbody">
+        <div class="mapwrap">
+          <svg id="trend" role="img" aria-label="월별 신규 및 폐점 건수 추이 선그래프"></svg>
+          <div class="tip" id="trend-tip" role="status"></div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <section class="panel">
+    <div class="phead">
+      <h2>브랜드 순증감</h2>
+      <span class="hint">사업장명에서 추출한 <b>추정</b> 브랜드 · 상위 40</span>
+    </div>
+    <div class="tscroll">
+      <table id="brands">
+        <thead><tr>
+          <th>브랜드</th><th>업종</th><th class="num">신규</th><th class="num">폐점</th>
+          <th class="num">순증감</th><th>증감</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="phead"><h2>상세 내역</h2><span class="hint" id="detail-note"></span></div>
+    <div class="tscroll">
+      <table id="detail">
+        <thead><tr>
+          <th>구분</th><th>업종</th><th>브랜드</th><th>사업장명</th>
+          <th>업태</th><th class="num">일자</th><th>주소</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer>
+    <p><b>인허가일자는 실제 개업일이 아닙니다.</b> 통상 며칠~몇 주의 시차가 있고, 인허가만 받고 개업하지 않는 건도 포함됩니다. 폐점은 폐업일자와 영업상태(폐업·말소·취소)를 함께 봅니다.</p>
+    <p><b>브랜드명은 규칙 기반 추정값입니다.</b> 사업장명에서 지점 표기를 제거해 뽑은 값이라 상호 표기가 제각각이면 오분류가 납니다. brands.csv 사전을 채우면 정확해집니다.</p>
+    <p><b>좌표는 중부원점 TM에서 변환한 값입니다.</b> 좌표계 가정이 틀리면 최대 수백 미터 밀립니다. 표본 몇 건을 지도에 찍어 확인하세요. 출처: 행정안전부 LOCALDATA 지방행정 인허가데이터.</p>
+  </footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+"use strict";
+const DATA = window.__NSRADAR__;
+const $ = (s) => document.querySelector(s);
+const NF = new Intl.NumberFormat("ko-KR");
+const svgns = "http://www.w3.org/2000/svg";
+
+function el(tag, attrs, parent) {
+  const n = document.createElementNS(svgns, tag);
+  for (const k in attrs) n.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(n);
+  return n;
+}
+function esc(s) {
+  return String(s == null ? "" : s).replace(/[&<>"]/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+}
+function fmtYmd(y) {
+  if (!y || y.length < 8) return "—";
+  return y.slice(0, 4) + "." + y.slice(4, 6) + "." + y.slice(6, 8);
+}
+function ymdToInput(y) {
+  return y && y.length >= 8 ? y.slice(0,4)+"-"+y.slice(4,6)+"-"+y.slice(6,8) : "";
+}
+function inputToYmd(v) { return v ? v.replace(/-/g, "") : ""; }
+// 축 눈금이 4등분으로 딱 떨어지도록 올림
+function niceMax(v) {
+  if (v <= 4) return 4;
+  const step = Math.pow(10, Math.floor(Math.log10(v / 4)));
+  for (const m of [1, 2, 2.5, 5, 10]) {
+    const s = step * m;
+    if (s * 4 >= v) return s * 4;
+  }
+  return Math.ceil(v / 4) * 4;
+}
+
+// ── 상태 ──────────────────────────────────────────────────────────────────
+const state = {
+  svc: new Set(DATA.services),
+  kind: new Set(["new", "shut"]),
+  from: DATA.range[0],
+  to: DATA.range[1],
+  q: "",
+};
+
+function apply() {
+  const q = state.q.trim().toLowerCase();
+  return DATA.rows.filter((r) => {
+    if (!state.kind.has(r.k)) return false;
+    if (!state.svc.has(r.s)) return false;
+    if (r.d < state.from || r.d > state.to) return false;
+    if (q) {
+      const hay = (r.n + " " + (r.b || "") + " " + (r.a || "") + " " + (r.u || "")).toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+}
+
+// ── 스탯 타일 ─────────────────────────────────────────────────────────────
+function renderTiles(rows) {
+  const nNew = rows.filter((r) => r.k === "new").length;
+  const nShut = rows.filter((r) => r.k === "shut").length;
+  const net = nNew - nShut;
+  const brands = new Set(rows.filter((r) => r.k === "new" && r.b).map((r) => r.b));
+  const churn = nNew + nShut;
+  const rate = churn ? Math.round((nShut / churn) * 100) : 0;
+  const tiles = [
+    { cls: "t-new", label: "신규 인허가", num: NF.format(nNew), note: "기간·범위 내" },
+    { cls: "t-shut", label: "폐점", num: NF.format(nShut), note: "폐업·말소·취소 포함" },
+    { cls: "", label: "순증감", num: (net > 0 ? "+" : "") + NF.format(net), note: "신규 − 폐점" },
+    { cls: "", label: "폐점 비중", num: rate + "%", note: "폐점 ÷ (신규+폐점)" },
+    { cls: "", label: "신규 브랜드 수", num: NF.format(brands.size), note: "추정 브랜드 기준" },
+  ];
+  $("#tiles").innerHTML = tiles.map((t) => `
+    <div class="tile ${t.cls}">
+      <span class="eyebrow">${t.label}</span>
+      <span class="num">${t.num}</span>
+      <span class="note">${t.note}</span>
+    </div>`).join("");
+}
+
+// ── 지도(Leaflet 실제 지도 배경) ──────────────────────────────────────────
+const MAP_CAP = 4000;
+let leafletMap = null;
+let markersLayer = null;
+
+function cssVar(name, fallback) {
+  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return v || fallback;
+}
+function isDarkTheme() {
+  const t = document.documentElement.getAttribute("data-theme");
+  if (t === "dark") return true;
+  if (t === "light") return false;
+  return !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+}
+function tileUrl() {
+  // CARTO 무료 타일(키 불필요) — 배경이 옅어서 점 색이 잘 보이고, 다크/라이트 테마에 맞춰 전환
+  return isDarkTheme()
+    ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+    : "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png";
+}
+function initMap() {
+  const bb = DATA.bbox;
+  leafletMap = L.map("map", { scrollWheelZoom: true });
+  leafletMap.fitBounds([[bb[1], bb[0]], [bb[3], bb[2]]], { padding: [12, 12] });
+  L.tileLayer(tileUrl(), {
+    maxZoom: 19,
+    attribution:
+      '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> ' +
+      '&copy; <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>',
+  }).addTo(leafletMap);
+  markersLayer = L.layerGroup().addTo(leafletMap);
+  setTimeout(() => leafletMap.invalidateSize(), 0);
+}
+function popupHtml(r) {
+  return `<span class="tkind ${r.k === "new" ? "k-new" : "k-shut"}">${r.k === "new" ? "신규" : "폐점"} · ${esc(r.s)}</span>` +
+    `<span class="tname">${esc(r.n)}</span>` +
+    `<span class="tmeta">${esc(r.u || "")}${r.u ? " · " : ""}${fmtYmd(r.d)}<br>${esc(r.a || "")}</span>`;
+}
+function renderMap(rows) {
+  if (!leafletMap) return;
+  markersLayer.clearLayers();
+  const newColor = cssVar("--new", "#2a78d6");
+  const shutColor = cssVar("--shut", "#e34948");
+
+  const pts = rows.filter((r) => r.x != null && r.y != null);
+  const shown = pts.slice(0, MAP_CAP);
+  // 폐점을 먼저, 신규를 나중에 그려서 신규 마커가 가려지지 않게 함
+  const ordered = shown.slice().sort((a, b) => (a.k === "new") - (b.k === "new"));
+
+  for (const r of ordered) {
+    const isNew = r.k === "new";
+    let marker;
+    if (isNew) {
+      marker = L.circleMarker([r.y, r.x], {
+        radius: 5, color: "#fff", weight: 1.6, opacity: 1,
+        fillColor: newColor, fillOpacity: 0.85,
+      });
+    } else {
+      const icon = L.divIcon({
+        className: "",
+        html: `<span style="display:block;width:9px;height:9px;background:${shutColor};` +
+              `border:1.6px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.25);` +
+              `transform:rotate(45deg);border-radius:1px;"></span>`,
+        iconSize: [11, 11], iconAnchor: [5.5, 5.5],
+      });
+      marker = L.marker([r.y, r.x], { icon });
+    }
+    marker.bindTooltip(popupHtml(r), { direction: "top", offset: [0, -6], sticky: true });
+    marker.addTo(markersLayer);
+  }
+
+  const noCoord = rows.length - pts.length;
+  const bits = [];
+  if (shown.length < pts.length)
+    bits.push(`${NF.format(pts.length)}건 중 ${NF.format(shown.length)}건만 표시`);
+  if (noCoord > 0) bits.push(`좌표 없음 ${NF.format(noCoord)}건 제외`);
+  $("#map-note").textContent = bits.join(" · ");
+}
+
+// ── 업종별 막대 ───────────────────────────────────────────────────────────
+function renderBySvc(rows) {
+  const svg = $("#bysvc");
+  svg.innerHTML = "";
+  const agg = new Map();
+  for (const s of DATA.services) agg.set(s, { new: 0, shut: 0 });
+  for (const r of rows) {
+    if (!agg.has(r.s)) agg.set(r.s, { new: 0, shut: 0 });
+    agg.get(r.s)[r.k]++;
+  }
+  const items = [...agg.entries()].filter(([, v]) => v.new + v.shut > 0)
+    .sort((a, b) => (b[1].new + b[1].shut) - (a[1].new + a[1].shut));
+
+  const W = Math.max(svg.clientWidth || 480, 320);
+  const LAB = 96, RIGHT = 52, ROW = 40, BAR = 11, GAP = 2;
+  const H = Math.max(items.length * ROW + 16, 90);
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  svg.setAttribute("height", H);
+  if (!items.length) {
+    const t = el("text", { x: W / 2, y: 50, "text-anchor": "middle", fill: "var(--ink-3)",
+                           "font-size": 13 }, svg);
+    t.textContent = "해당 조건에 데이터가 없습니다";
+    return;
+  }
+  const max = Math.max(...items.map(([, v]) => Math.max(v.new, v.shut)), 1);
+  const plotW = W - LAB - RIGHT;
+
+  items.forEach(([name, v], i) => {
+    const y0 = i * ROW + 12;
+    const lab = el("text", { x: LAB - 10, y: y0 + BAR + GAP / 2 + 1, "text-anchor": "end",
+                             fill: "var(--ink-2)", "font-size": 12.5 }, svg);
+    lab.textContent = name;
+    [["new", v.new, "var(--new)"], ["shut", v.shut, "var(--shut)"]].forEach((d, j) => {
+      const w = (d[1] / max) * plotW;
+      const y = y0 + j * (BAR + GAP);
+      if (w > 0)
+        el("rect", { x: LAB, y, width: Math.max(w, 2), height: BAR, rx: 3, fill: d[2] }, svg);
+      const t = el("text", { x: LAB + Math.max(w, 2) + 7, y: y + BAR - 1.5,
+                             fill: "var(--ink-2)", "font-size": 11.5,
+                             "font-family": '"IBM Plex Mono", monospace' }, svg);
+      t.textContent = NF.format(d[1]);
+    });
+  });
+}
+
+// ── 월별 추이 ─────────────────────────────────────────────────────────────
+let trendState = null;
+function renderTrend(rows) {
+  const svg = $("#trend");
+  svg.innerHTML = "";
+  const months = new Map();
+  for (const r of rows) {
+    const m = r.d.slice(0, 6);
+    if (!months.has(m)) months.set(m, { new: 0, shut: 0 });
+    months.get(m)[r.k]++;
+  }
+  const keys = [...months.keys()].sort();
+  const W = Math.max(svg.clientWidth || 480, 320);
+  const H = 250, L = 40, R = 48, T = 14, B = 30;
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  svg.setAttribute("height", H);
+  if (keys.length < 1) {
+    const t = el("text", { x: W / 2, y: H / 2, "text-anchor": "middle", fill: "var(--ink-3)",
+                           "font-size": 13 }, svg);
+    t.textContent = "해당 조건에 데이터가 없습니다";
+    trendState = null;
+    return;
+  }
+  const rawMax = Math.max(...keys.map((k) => Math.max(months.get(k).new, months.get(k).shut)), 1);
+  const max = niceMax(rawMax);
+  const plotW = W - L - R, plotH = H - T - B;
+  const px = (i) => keys.length === 1 ? L + plotW / 2 : L + (i / (keys.length - 1)) * plotW;
+  const py = (v) => T + plotH - (v / max) * plotH;
+
+  for (let i = 0; i <= 4; i++) {
+    const v = Math.round((max * i) / 4);
+    const y = py(v);
+    el("line", { x1: L, y1: y, x2: L + plotW, y2: y, stroke: "var(--grid)", "stroke-width": 1 }, svg);
+    const t = el("text", { x: L - 8, y: y + 4, "text-anchor": "end", fill: "var(--ink-3)",
+                           "font-size": 11, "font-family": '"IBM Plex Mono", monospace' }, svg);
+    t.textContent = NF.format(v);
+  }
+  const step = Math.max(1, Math.ceil(keys.length / 6));
+  keys.forEach((k, i) => {
+    if (i % step && i !== keys.length - 1) return;
+    const t = el("text", { x: px(i), y: H - 10, "text-anchor": "middle", fill: "var(--ink-3)",
+                           "font-size": 11, "font-family": '"IBM Plex Mono", monospace' }, svg);
+    t.textContent = k.slice(2, 4) + "." + k.slice(4, 6);
+  });
+
+  [["new", "var(--new)"], ["shut", "var(--shut)"]].forEach(([key, color]) => {
+    const d = keys.map((k, i) => `${i ? "L" : "M"}${px(i)} ${py(months.get(k)[key])}`).join(" ");
+    el("path", { d, fill: "none", stroke: color, "stroke-width": 2,
+                 "stroke-linejoin": "round", "stroke-linecap": "round" }, svg);
+    if (keys.length <= 26)
+      keys.forEach((k, i) => {
+        el("circle", { cx: px(i), cy: py(months.get(k)[key]), r: 3.1, fill: color,
+                       stroke: "var(--surface)", "stroke-width": 1.6 }, svg);
+      });
+  });
+  // 마지막 지점 오른쪽에 직접 라벨 — 겹치면 위아래로 벌림
+  const last = keys.length - 1;
+  const lastVals = [
+    { key: "new", label: "신규", color: "var(--new)", y: py(months.get(keys[last]).new) },
+    { key: "shut", label: "폐점", color: "var(--shut)", y: py(months.get(keys[last]).shut) },
+  ].sort((a, b) => a.y - b.y);
+  if (lastVals[1].y - lastVals[0].y < 14) {
+    lastVals[0].y -= 7 - (lastVals[1].y - lastVals[0].y) / 2;
+    lastVals[1].y = lastVals[0].y + 14;
+  }
+  lastVals.forEach((d) => {
+    const t = el("text", { x: px(last) + 8, y: Math.min(Math.max(d.y + 4, T + 6), T + plotH),
+                           "text-anchor": "start", fill: d.color, "font-size": 11.5,
+                           "font-weight": 600 }, svg);
+    t.textContent = d.label;
+  });
+
+  const cross = el("line", { x1: 0, y1: T, x2: 0, y2: T + plotH, stroke: "var(--line-strong)",
+                             "stroke-width": 1, opacity: 0 }, svg);
+  const hit = el("rect", { x: L, y: T, width: plotW, height: plotH, fill: "transparent" }, svg);
+  trendState = { svg, keys, months, px, cross, L, plotW };
+  hit.addEventListener("pointermove", onTrendMove);
+  hit.addEventListener("pointerleave", () => {
+    cross.setAttribute("opacity", 0);
+    $("#trend-tip").classList.remove("on");
+  });
+}
+function onTrendMove(ev) {
+  if (!trendState) return;
+  const { svg, keys, months, px, cross, L, plotW } = trendState;
+  const box = svg.getBoundingClientRect();
+  const scale = svg.viewBox.baseVal.width / box.width;
+  const mx = (ev.clientX - box.left) * scale;
+  const ratio = keys.length === 1 ? 0 : (mx - L) / plotW;
+  const i = Math.max(0, Math.min(keys.length - 1, Math.round(ratio * (keys.length - 1))));
+  const k = keys[i], v = months.get(k);
+  cross.setAttribute("x1", px(i)); cross.setAttribute("x2", px(i));
+  cross.setAttribute("opacity", 1);
+  const t = $("#trend-tip");
+  t.innerHTML = `<span class="tname">${k.slice(0,4)}년 ${k.slice(4,6)}월</span>` +
+    `<span class="tmeta"><span style="color:var(--new)">■</span> 신규 ${NF.format(v.new)}건<br>` +
+    `<span style="color:var(--shut)">■</span> 폐점 ${NF.format(v.shut)}건</span>`;
+  t.classList.add("on");
+  let left = px(i) / scale + 14;
+  if (left + t.offsetWidth > box.width) left = px(i) / scale - t.offsetWidth - 14;
+  t.style.left = Math.max(0, left) + "px";
+  t.style.top = "10px";
+}
+
+// ── 브랜드 표 ─────────────────────────────────────────────────────────────
+function renderBrands(rows) {
+  const agg = new Map();
+  for (const r of rows) {
+    const b = r.b || r.n || "(미상)";
+    const key = b + " " + r.s;
+    if (!agg.has(key)) agg.set(key, { brand: b, svc: r.s, new: 0, shut: 0 });
+    agg.get(key)[r.k]++;
+  }
+  const items = [...agg.values()].map((d) => ({ ...d, net: d.new - d.shut }))
+    .sort((a, b) => Math.abs(b.net) - Math.abs(a.net) || (b.new + b.shut) - (a.new + a.shut))
+    .slice(0, 40);
+  const maxAbs = Math.max(1, ...items.map((d) => Math.abs(d.net)));
+  const tb = $("#brands").tBodies[0];
+  if (!items.length) {
+    tb.innerHTML = `<tr><td colspan="6" class="empty">해당 조건에 데이터가 없습니다</td></tr>`;
+    return;
+  }
+  tb.innerHTML = items.map((d) => {
+    const w = (Math.abs(d.net) / maxAbs) * 70;
+    const bar = d.net >= 0
+      ? `<span class="mid"></span><span class="right" style="width:${w}px"></span>`
+      : `<span class="left" style="width:${w}px"></span><span class="mid"></span>`;
+    return `<tr>
+      <td>${esc(d.brand)}</td>
+      <td class="addr">${esc(d.svc)}</td>
+      <td class="num">${d.new || ""}</td>
+      <td class="num">${d.shut || ""}</td>
+      <td class="num" style="font-weight:600;color:${d.net > 0 ? "var(--new)" : d.net < 0 ? "var(--shut)" : "var(--ink-3)"}">${d.net > 0 ? "+" : ""}${d.net}</td>
+      <td><div class="dbar">${bar}</div></td>
+    </tr>`;
+  }).join("");
+}
+
+// ── 상세 표 ───────────────────────────────────────────────────────────────
+const DETAIL_CAP = 800;
+function renderDetail(rows) {
+  const sorted = rows.slice().sort((a, b) => b.d.localeCompare(a.d));
+  const shown = sorted.slice(0, DETAIL_CAP);
+  const tb = $("#detail").tBodies[0];
+  $("#detail-note").textContent = shown.length < sorted.length
+    ? `${NF.format(sorted.length)}건 중 최신 ${NF.format(shown.length)}건 표시 — 전량은 엑셀 리포트에서`
+    : `${NF.format(sorted.length)}건`;
+  if (!shown.length) {
+    tb.innerHTML = `<tr><td colspan="7" class="empty">해당 조건에 데이터가 없습니다</td></tr>`;
+    return;
+  }
+  tb.innerHTML = shown.map((r) => `<tr>
+    <td><span class="badge ${r.k === "new" ? "b-new" : "b-shut"}">${r.k === "new" ? "신규" : "폐점"}</span></td>
+    <td class="addr">${esc(r.s)}</td>
+    <td>${esc(r.b || "")}</td>
+    <td>${esc(r.n)}</td>
+    <td class="addr">${esc(r.u || "")}</td>
+    <td class="num">${fmtYmd(r.d)}</td>
+    <td class="addr">${esc(r.a || "")}</td>
+  </tr>`).join("");
+}
+
+// ── 렌더 파이프라인 ───────────────────────────────────────────────────────
+function renderAll() {
+  const rows = apply();
+  renderTiles(rows);
+  renderMap(rows);
+  renderBySvc(rows);
+  renderTrend(rows);
+  renderBrands(rows);
+  renderDetail(rows);
+}
+
+// ── 초기화 ────────────────────────────────────────────────────────────────
+function init() {
+  $("#title").textContent = DATA.title;
+  document.title = DATA.title;
+  $("#subtitle").textContent = DATA.subtitle;
+  $("#m-bbox").textContent = DATA.bbox.map((v) => v.toFixed(4)).join(", ");
+  if (DATA.region) {
+    $("#m-region-wrap").hidden = false;
+    $("#m-region").textContent = DATA.region;
+  }
+  $("#m-span").textContent = fmtYmd(DATA.range[0]) + " – " + fmtYmd(DATA.range[1]);
+  $("#m-crs").textContent = DATA.crs;
+  $("#m-built").textContent = DATA.built;
+
+  $("#f-svc").innerHTML = DATA.services.map((s) =>
+    `<button class="chip" type="button" data-svc="${esc(s)}" aria-pressed="true">${esc(s)}</button>`).join("");
+  $("#f-svc").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-svc]");
+    if (!b) return;
+    const on = b.getAttribute("aria-pressed") === "true";
+    b.setAttribute("aria-pressed", String(!on));
+    on ? state.svc.delete(b.dataset.svc) : state.svc.add(b.dataset.svc);
+    renderAll();
+  });
+  $("#f-kind").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-kind]");
+    if (!b) return;
+    const on = b.getAttribute("aria-pressed") === "true";
+    b.setAttribute("aria-pressed", String(!on));
+    on ? state.kind.delete(b.dataset.kind) : state.kind.add(b.dataset.kind);
+    renderAll();
+  });
+  const fFrom = $("#f-from"), fTo = $("#f-to");
+  fFrom.value = ymdToInput(state.from);
+  fTo.value = ymdToInput(state.to);
+  fFrom.min = fTo.min = ymdToInput(DATA.range[0]);
+  fFrom.max = fTo.max = ymdToInput(DATA.range[1]);
+  fFrom.addEventListener("change", () => { state.from = inputToYmd(fFrom.value) || DATA.range[0]; renderAll(); });
+  fTo.addEventListener("change", () => { state.to = inputToYmd(fTo.value) || DATA.range[1]; renderAll(); });
+
+  let qt;
+  $("#f-q").addEventListener("input", (e) => {
+    clearTimeout(qt);
+    qt = setTimeout(() => { state.q = e.target.value; renderAll(); }, 160);
+  });
+  $("#f-reset").addEventListener("click", () => {
+    state.svc = new Set(DATA.services);
+    state.kind = new Set(["new", "shut"]);
+    state.from = DATA.range[0];
+    state.to = DATA.range[1];
+    state.q = "";
+    fFrom.value = ymdToInput(state.from);
+    fTo.value = ymdToInput(state.to);
+    $("#f-q").value = "";
+    document.querySelectorAll(".chip").forEach((c) => c.setAttribute("aria-pressed", "true"));
+    renderAll();
+  });
+
+  let rt;
+  window.addEventListener("resize", () => {
+    clearTimeout(rt);
+    rt = setTimeout(() => {
+      renderAll();
+      if (leafletMap) leafletMap.invalidateSize();
+    }, 140);
+  });
+  initMap();
+  renderAll();
+}
+init();
+</script>
+</body></html>
